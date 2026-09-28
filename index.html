@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Views Predictor</title>
+<style>
+  body{font-family:sans-serif;max-width:600px;margin:0 auto;padding:16px;background:#0f0f0f;color:#fff}
+  input,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #444;background:#1c1c1c;color:#fff;font-size:16px;box-sizing:border-box}
+  button{background:#ff0033;border:none;font-weight:bold}
+  button:disabled{opacity:.5}
+  #result{white-space:pre-wrap;background:#1c1c1c;padding:14px;border-radius:8px;margin-top:12px;line-height:1.5}
+  small{color:#aaa}
+</style>
+</head>
+<body>
+<h2>📈 YouTube Views Predictor</h2>
+<p>Apne video ke analytics ke screenshots daalo (max 5). Jitne zyada, utna better.</p>
+<input type="file" id="files" accept="image/*" multiple>
+<input type="text" id="age" placeholder="Video kitne din pehle upload hua? (jaise 3 din)">
+<input type="text" id="subs" placeholder="Subscribers kitne hain? (optional)">
+<button id="btn">Prediction batao</button>
+<div id="result"></div>
+<small>⚠️ Ye sirf expected estimate hai, guarantee nahi.</small>
+
+<script>
+function compress(file){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1000;
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=img.width*scale; c.height=img.height*scale;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      resolve(c.toDataURL('image/jpeg',0.7).split(',')[1]);
+    };
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+document.getElementById('btn').onclick=async()=>{
+  const files=[...document.getElementById('files').files].slice(0,5);
+  const out=document.getElementById('result');
+  const btn=document.getElementById('btn');
+  if(!files.length){out.textContent='Pehle screenshot daalo.';return;}
+  btn.disabled=true; out.textContent='Analyze ho raha hai... 10-20 second lagenge ⏳';
+  try{
+    const images=await Promise.all(files.map(compress));
+    const r=await fetch('/api/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        images,
+        age:document.getElementById('age').value,
+        subs:document.getElementById('subs').value
+      })
+    });
+    const d=await r.json();
+    out.textContent=d.text||d.error||'Kuch gadbad hui, dobara try karo.';
+  }catch(e){
+    out.textContent='Error aaya, dobara try karo.';
+  }
+  btn.disabled=false;
+};
+</script>
+</body>
+</html>
